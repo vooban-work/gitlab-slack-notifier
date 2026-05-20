@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 )
 
 type Handshake struct {
@@ -108,8 +109,38 @@ func setupServer() {
 
 	fmt.Printf("Server listening on localhost:%v\n", port)
 
+	go startPingPong()
+
 	err := server.ListenAndServe()
 	if err != nil {
 		log.Fatalln(err)
+	}
+}
+
+func startPingPong() {
+	url := PING_PONG_URL
+	if url == "" {
+		fmt.Println("ping-pong disabled (PING_PONG_URL not set)")
+		return
+	}
+
+	minutes := PING_PONG_INTERVAL_MINUTES
+	if minutes <= 0 {
+		minutes = 1
+	}
+	interval := time.Duration(minutes) * time.Minute
+
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	time.Sleep(interval)
+	for {
+		resp, err := client.Get(url)
+		if err != nil {
+			fmt.Printf("ping-pong error: %v\n", err)
+		} else {
+			fmt.Printf("ping-pong %v -> %v\n", url, resp.StatusCode)
+			resp.Body.Close()
+		}
+		time.Sleep(interval)
 	}
 }
