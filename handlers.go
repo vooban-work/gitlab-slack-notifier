@@ -134,7 +134,16 @@ func getUserID(username string) (string, error) {
 	// send query to Slack with email to retrieve the user ID
 	slackUser, err := fetchSlackUser(userEmail)
 	if err != nil {
-		return "", err
+		// fallback: retry with `username@USER_EMAIL_DOMAIN`
+		n := formatGitLabUsernameToEmail(username)
+		if n == userEmail || !isEmailValid(n) {
+			return "", err
+		}
+		fmt.Printf("Slack lookup failed for %v, falling back to GitLab username: %v\n", userEmail, n)
+		slackUser, err = fetchSlackUser(n)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return slackUser.User.Id, nil
@@ -163,4 +172,8 @@ func fetchGitLabUserToFormattedEmail(username string) (string, error) {
 
 	// generate full email
 	return usernameTag + "@" + USER_EMAIL_DOMAIN, nil
+}
+
+func formatGitLabUsernameToEmail(username string) string {
+	return strings.ToLower(strings.TrimSpace(username)) + "@" + USER_EMAIL_DOMAIN 
 }
